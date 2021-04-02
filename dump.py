@@ -22,6 +22,7 @@ from paramiko import SSHClient
 from scp import SCPClient
 from tqdm import tqdm
 import traceback
+from frida import core
 
 IS_PY2 = sys.version_info[0] < 3
 if IS_PY2:
@@ -37,6 +38,7 @@ Password = 'alpine'
 Host = 'localhost'
 Port = 2222
 KeyFileName = None
+udid=None
 
 TEMP_DIR = tempfile.gettempdir()
 PAYLOAD_DIR = 'Payload'
@@ -46,7 +48,7 @@ file_dict = {}
 finished = threading.Event()
 
 
-def get_usb_iphone():
+def get_usb_iphone(udid):
     Type = 'usb'
     if int(frida.__version__.split('.')[0]) < 12:
         Type = 'tether'
@@ -65,7 +67,11 @@ def get_usb_iphone():
             print('Waiting for USB device...')
             changed.wait()
         else:
-            device = devices[0]
+            for tempDevice in devices:
+                if tempDevice.id==udid:
+                    device =tempDevice
+            if device==None:
+                device = devices[0]
 
     device_manager.off('changed', on_changed)
 
@@ -298,6 +304,7 @@ if __name__ == '__main__':
     parser.add_argument('-u', '--user', dest='ssh_user', help='Specify SSH username')
     parser.add_argument('-P', '--password', dest='ssh_password', help='Specify SSH password')
     parser.add_argument('-K', '--key_filename', dest='ssh_key_filename', help='Specify SSH private key file path')
+    parser.add_argument('-D', '--udid', dest='udid', help='Device udid')
     parser.add_argument('target', nargs='?', help='Bundle identifier or display name of the target app')
 
     args = parser.parse_args()
@@ -308,9 +315,9 @@ if __name__ == '__main__':
     if not len(sys.argv[1:]):
         parser.print_help()
         sys.exit(exit_code)
-
-    device = get_usb_iphone()
-
+    if args.udid:
+        udid = args.udid
+    device = get_usb_iphone(udid)
     if args.list_applications:
         list_applications(device)
     else:
